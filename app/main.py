@@ -1,5 +1,4 @@
-import random
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 import pygame
 
@@ -10,6 +9,7 @@ from app.core.config import (
     GAME_HEIGHT,
     GAME_WIDTH,
     GREY,
+    PAIR_COOLDOWN_FRAMES,
     PAPER_URL,
     ROCK_URL,
     SCALE_IMAGE,
@@ -21,25 +21,24 @@ from app.models.entity import Entity
 from app.ui.ui import UI
 from app.utils.utils import create_entities
 
-contact_frames = defaultdict(int)
+touch_frames = defaultdict(int)
+pair_cooldowns = defaultdict(int)
 
 pygame.init()
 screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
-
 game_surface = pygame.Surface((GAME_WIDTH, GAME_HEIGHT))
 
 game_x = (WINDOW_WIDTH - GAME_WIDTH) // 2
 game_y = (WINDOW_HEIGHT - GAME_HEIGHT) // 2
+
 clock = pygame.time.Clock()
 ui = UI()
 
-# картинки
 images = {
     "rock": pygame.image.load(ROCK_URL),
     "scissors": pygame.image.load(SCISSORS_URL),
     "paper": pygame.image.load(PAPER_URL),
 }
-
 
 for key in images:
     images[key] = pygame.transform.scale(images[key], (SCALE_IMAGE, SCALE_IMAGE))
@@ -49,8 +48,7 @@ def main():
     running = True
     playing = True
     entities = create_entities()
-
-    mode = "chaos"  # или "smart"
+    mode = "smart"  # or "chaos"
 
     while running:
         clock.tick(FPS)
@@ -59,7 +57,6 @@ def main():
             f"{'Playing' if playing else 'Paused'} | Mode: {mode} | SPACE pause | TAB switch | R reset"
         )
 
-        # события
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -68,47 +65,53 @@ def main():
                 if event.key == pygame.K_SPACE:
                     playing = not playing
 
-                if event.key == pygame.K_TAB:
+                elif event.key == pygame.K_TAB:
                     mode = "smart" if mode == "chaos" else "chaos"
 
-                if event.key == pygame.K_r:
+                elif event.key == pygame.K_r:
                     entities = create_entities()
-                    contact_frames.clear()
+                    touch_frames.clear()
+                    pair_cooldowns.clear()
 
-        # логика игры
         if playing:
+            population = Counter(e.kind for e in entities)
+
+            for e in entities:
+                e.reset_forces()
+
             if mode == "smart":
                 for e in entities:
-                    e.think(entities)
-                    e.move()
-
-            if mode == "chaos":
-                threshold = 1
-                for e in entities:
-                    e.vx += random.uniform(-0.2, 0.2)
-                    e.vy += random.uniform(-0.2, 0.2)
-                    e.move()
+                    e.think(entities, population)
             else:
-                threshold = CAPTURE_FRAMES
+                for e in entities:
+                    e.wander()
+
+            for e in entities:
+                e.integrate()
 
             for i in range(len(entities)):
                 for j in range(i + 1, len(entities)):
                     a = entities[i]
                     b = entities[j]
+                    key = (i, j)
+
+                    if pair_cooldowns[key] > 0:
+                        pair_cooldowns[key] -= 1
+                        continue
 
                     if Entity.collide(a, b):
                         Entity.separate(a, b)
-                        contact_frames[(i, j)] += 1
+                        touch_frames[key] += 1
 
-                        if contact_frames[(i, j)] >= threshold:
-                            Entity.resolve(a, b)
-                            contact_frames[(i, j)] = 0
+                        if touch_frames[key] >= CAPTURE_FRAMES:
+                            if Entity.resolve(a, b):
+                                pair_cooldowns[key] = PAIR_COOLDOWN_FRAMES
+                            touch_frames[key] = 0
                     else:
-                        contact_frames[(i, j)] = 0
+                        touch_frames[key] = 0
 
-        # отрисовка
+        # draw
         screen.fill((30, 30, 30))
-
         pygame.draw.rect(
             screen, (255, 255, 255), (game_x, game_y, GAME_WIDTH, GAME_HEIGHT), 2
         )
@@ -119,10 +122,8 @@ def main():
             img = images[e.kind]
             game_surface.blit(img, (e.x - e.radius, e.y - e.radius))
 
-            # направление движения
-            end_x = e.x + e.vx * 5
-            end_y = e.y + e.vy * 5
-
+            end_x = e.x + e.vx * 6
+            end_y = e.y + e.vy * 6
             pygame.draw.line(
                 game_surface, COLOR_MAP[e.kind], (e.x, e.y), (end_x, end_y), 1
             )
