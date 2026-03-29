@@ -56,7 +56,7 @@ SEPARATION_RADIUS_SQ = SEPARATION_RADIUS * SEPARATION_RADIUS
 # РЕСУРСЫ (КАРТИНКИ)
 # =========================
 
-ROCK_URL = "assets/stone.png"
+ROCK_URL = "assets/rock.png"
 SCISSORS_URL = "assets/scissors.png"
 PAPER_URL = "assets/paper.png"
 
@@ -84,7 +84,7 @@ RADIUS = SCALE_IMAGE // 2  # радиус коллизии
 # КОЛИЧЕСТВО ОБЪЕКТОВ
 # =========================
 
-COUNT_OBJECT = 70  # сколько объектов создаётся в начале
+COUNT_OBJECT = 111  # сколько объектов создаётся в начале
 
 
 # =========================
