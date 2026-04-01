@@ -1,10 +1,12 @@
 from collections import Counter, defaultdict
+from time import sleep
 
 import pygame
 
 from app.core.config import (
     CAPTURE_FRAMES,
     COLOR_MAP,
+    COUNT_OBJECT,
     FPS,
     GAME_HEIGHT,
     GAME_WIDTH,
@@ -75,6 +77,17 @@ def main():
 
         if playing:
             population = Counter(e.kind for e in entities)
+
+            if (
+                population["rock"] == COUNT_OBJECT
+                or population["paper"] == COUNT_OBJECT
+                or population["scissors"] == COUNT_OBJECT
+            ):
+                sleep(1)
+
+                entities = create_entities()
+                touch_frames.clear()
+                pair_cooldowns.clear()
 
             for e in entities:
                 e.reset_forces()
